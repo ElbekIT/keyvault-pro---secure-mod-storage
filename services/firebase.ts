@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User, AuthError } from "firebase/auth";
 import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment, Timestamp, DocumentReference, enableNetwork, disableNetwork, DocumentSnapshot } from "firebase/firestore";
 import { PasteData } from "../types";
 
@@ -27,9 +27,18 @@ export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, provider);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Login failed", error);
-    throw error;
+    
+    // NETLIFY / GITHUB SPECIFIC ERROR HANDLING
+    if (error.code === 'auth/unauthorized-domain') {
+        const domain = window.location.hostname;
+        throw new Error(`DOMAIN ERROR: You must add "${domain}" to the Authorized Domains list in your Firebase Console (Authentication > Settings).`);
+    } else if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error("Login cancelled.");
+    } else {
+        throw new Error("Login failed: " + error.message);
+    }
   }
 };
 
@@ -53,15 +62,27 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     });
 };
 
-// Connection Checker
+// REAL Connection Checker (Pings the database)
 export const checkDbConnection = async (): Promise<boolean> => {
     try {
-        // Simple timeout check to see if we can reach the server
-        // We simulate a network toggle to ensure we aren't in a stale state
+        // 1. Ensure network is enabled
         await enableNetwork(db);
+        
+        // 2. Try to fetch a dummy document with a short timeout. 
+        // We don't care if it exists, just that we can talk to the server.
+        const healthRef = doc(db, "_health", "ping");
+        
+        await withTimeout(
+            getDoc(healthRef), 
+            5000, 
+            "Network Ping Timeout"
+        );
+        
         return true;
-    } catch (e) {
+    } catch (e: any) {
         console.error("Connection check failed", e);
+        // If permission denied, it means we CONNECTED but were rejected. That counts as "Online".
+        if (e.code === 'permission-denied') return true;
         return false;
     }
 };
@@ -96,11 +117,11 @@ export const createPaste = async (data: CreatePasteParams) => {
         views: 0
     };
 
-    // Use a stricter timeout (8 seconds) to prevent infinite "Encrypting..." state
+    // Use a stricter timeout (10 seconds)
     const docRef = await withTimeout<DocumentReference>(
         addDoc(collection(db, "pastes"), docData), 
-        8000, 
-        "Network Timeout: Server took too long to respond. Please check your internet."
+        10000, 
+        "SERVER TIMEOUT: The database is not responding. Please check your internet connection."
     );
     
     return docRef.id;
@@ -108,7 +129,7 @@ export const createPaste = async (data: CreatePasteParams) => {
     console.error("Error creating paste", error);
     // Return clearer errors
     if (error.code === 'permission-denied') {
-        throw new Error("Access Denied: You do not have permission to write to the database.");
+        throw new Error("ACCESS DENIED: Firebase rules are blocking this write. Please check Firestore Rules.");
     }
     throw error;
   }
@@ -117,18 +138,18 @@ export const createPaste = async (data: CreatePasteParams) => {
 export const getPaste = async (id: string) => {
   try {
     const docRef = doc(db, "pastes", id);
-    // 5 Second timeout for reads
+    // 8 Second timeout for reads
     const docSnap = await withTimeout<DocumentSnapshot>(
         getDoc(docRef),
-        5000,
+        8000,
         "Slow connection: Could not retrieve key."
     );
     
     if (docSnap.exists()) {
-      // Increment view count silently
+      // Increment view count silently, don't await it
       updateDoc(docRef, {
         views: increment(1)
-      }).catch(console.error);
+      }).catch(err => console.warn("Could not update view count", err));
 
       return { id: docSnap.id, ...docSnap.data() } as PasteData;
     } else {

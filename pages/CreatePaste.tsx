@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/AuthContext';
 import { useLanguage } from '../components/LanguageContext';
 import { createPaste, checkDbConnection } from '../services/firebase';
-import { Lock, Globe, RefreshCw, Save, Clock, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, Globe, RefreshCw, Save, Clock, ShieldCheck, AlertCircle, WifiOff } from 'lucide-react';
 
 const CreatePaste: React.FC = () => {
   const { user } = useAuth();
@@ -16,9 +16,10 @@ const CreatePaste: React.FC = () => {
   const [duration, setDuration] = useState<number>(-1); // -1 = forever
   const [submitting, setSubmitting] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const generateRandomKey = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed 0, O, 1, I to avoid confusion
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
     for (let i = 0; i < 4; i++) {
         for (let j = 0; j < 4; j++) {
@@ -46,13 +47,15 @@ const CreatePaste: React.FC = () => {
     if (!user || !content.trim()) return;
 
     setSubmitting(true);
+    setErrorMsg('');
     setStatusMsg(t.create.encrypting);
 
     try {
-      // 1. Check Connection first
+      // 1. Force Connection Check
+      // This prevents the "Infinite Spinner" by failing fast if no network
       const isOnline = await checkDbConnection();
       if (!isOnline) {
-        throw new Error("No Connection to Security Database");
+        throw new Error("NETWORK ERROR: Could not connect to the secure database. Please check your internet.");
       }
 
       // 2. Submit
@@ -72,14 +75,14 @@ const CreatePaste: React.FC = () => {
 
     } catch (error: any) {
       console.error(error);
-      let msg = error.message;
-      if (msg.includes("timeout") || msg.includes("offline")) {
-         msg = t.create.timeout;
-      }
-      alert("SYSTEM ERROR: " + msg);
-      setStatusMsg('');
-    } finally {
       setSubmitting(false);
+      
+      let displayMsg = error.message;
+      if (displayMsg.includes("Missing or insufficient permissions")) {
+         displayMsg = "DATABASE PERMISSION DENIED. Check Firestore Rules.";
+      }
+      
+      setErrorMsg(displayMsg);
     }
   };
 
@@ -87,9 +90,16 @@ const CreatePaste: React.FC = () => {
     <div className="max-w-4xl mx-auto px-4 py-10">
       <div className="bg-surface border border-slate-700 rounded-2xl overflow-hidden shadow-2xl relative">
         {submitting && (
-            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+            <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 text-center">
                 <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-primary font-mono text-lg animate-pulse">{statusMsg}</p>
+            </div>
+        )}
+
+        {errorMsg && (
+            <div className="bg-red-500/10 border-b border-red-500/50 p-4 flex items-center gap-3 text-red-400">
+                <WifiOff className="flex-shrink-0" />
+                <p className="text-sm font-bold">{errorMsg}</p>
             </div>
         )}
 

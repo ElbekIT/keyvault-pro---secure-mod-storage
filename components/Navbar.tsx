@@ -1,22 +1,32 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { useLanguage, Language } from './LanguageContext';
-import { logoutUser, loginWithGoogle } from '../services/firebase';
-import { Shield, Menu, X, LogOut, Plus, User as UserIcon, LayoutDashboard, Globe, Activity } from 'lucide-react';
+import { logoutUser, loginWithGoogle, checkDbConnection } from '../services/firebase';
+import { Shield, Menu, X, LogOut, Plus, User as UserIcon, LayoutDashboard, Globe, Wifi } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  // Check connection on mount
+  useEffect(() => {
+    checkDbConnection().then(setIsOnline);
+    const interval = setInterval(() => {
+        checkDbConnection().then(setIsOnline);
+    }, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogin = async () => {
     try {
       await loginWithGoogle();
       navigate('/dashboard');
-    } catch (e) {
-      alert("Login failed. Please try again.");
+    } catch (e: any) {
+      alert(e.message); // Show the specific error (e.g., Domain not authorized)
     }
   };
 
@@ -48,8 +58,8 @@ const Navbar: React.FC = () => {
             <div className="relative">
                 <Shield className="h-8 w-8 text-primary" />
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOnline ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+                  <span className={`relative inline-flex rounded-full h-3 w-3 ${isOnline ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
                 </span>
             </div>
             <span className="text-2xl font-bold tracking-tighter text-white">
