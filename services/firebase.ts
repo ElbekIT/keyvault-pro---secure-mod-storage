@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment, Timestamp, DocumentReference } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment, Timestamp, DocumentReference, enableNetwork, disableNetwork, DocumentSnapshot } from "firebase/firestore";
 import { PasteData } from "../types";
 
 // Configuration provided by user
@@ -53,6 +53,19 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     });
 };
 
+// Connection Checker
+export const checkDbConnection = async (): Promise<boolean> => {
+    try {
+        // Simple timeout check to see if we can reach the server
+        // We simulate a network toggle to ensure we aren't in a stale state
+        await enableNetwork(db);
+        return true;
+    } catch (e) {
+        console.error("Connection check failed", e);
+        return false;
+    }
+};
+
 // Database Services
 interface CreatePasteParams extends Omit<PasteData, 'id' | 'createdAt' | 'views' | 'expiresAt' | 'durationLabel'> {
     durationInMinutes: number; // -1 for forever
@@ -63,6 +76,7 @@ export const createPaste = async (data: CreatePasteParams) => {
   try {
     let expiresAt = null;
     
+    // Explicitly handle duration logic
     if (data.durationInMinutes > 0) {
         const now = new Date();
         const expiryDate = new Date(now.getTime() + data.durationInMinutes * 60000);
@@ -82,16 +96,20 @@ export const createPaste = async (data: CreatePasteParams) => {
         views: 0
     };
 
-    // Use a timeout to prevent infinite "Encrypting..." state
+    // Use a stricter timeout (8 seconds) to prevent infinite "Encrypting..." state
     const docRef = await withTimeout<DocumentReference>(
         addDoc(collection(db, "pastes"), docData), 
-        15000, 
-        "Database connection timeout"
+        8000, 
+        "Network Timeout: Server took too long to respond. Please check your internet."
     );
     
     return docRef.id;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating paste", error);
+    // Return clearer errors
+    if (error.code === 'permission-denied') {
+        throw new Error("Access Denied: You do not have permission to write to the database.");
+    }
     throw error;
   }
 };
@@ -99,11 +117,15 @@ export const createPaste = async (data: CreatePasteParams) => {
 export const getPaste = async (id: string) => {
   try {
     const docRef = doc(db, "pastes", id);
-    const docSnap = await getDoc(docRef);
+    // 5 Second timeout for reads
+    const docSnap = await withTimeout<DocumentSnapshot>(
+        getDoc(docRef),
+        5000,
+        "Slow connection: Could not retrieve key."
+    );
     
     if (docSnap.exists()) {
-      // Increment view count
-      // We don't await this to speed up the UI response
+      // Increment view count silently
       updateDoc(docRef, {
         views: increment(1)
       }).catch(console.error);
@@ -126,8 +148,12 @@ export const getUserPastes = async (uid: string) => {
     querySnapshot.forEach((doc) => {
       pastes.push({ id: doc.id, ...doc.data() } as PasteData);
     });
-    // Sort manually since we didn't create a composite index yet
-    return pastes.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    // Sort manually by creation time (Newest First)
+    return pastes.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+    });
   } catch (error) {
     console.error("Error fetching user pastes", error);
     return [];

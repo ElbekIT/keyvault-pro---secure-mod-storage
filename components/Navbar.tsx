@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { useLanguage, Language } from './LanguageContext';
 import { logoutUser, loginWithGoogle } from '../services/firebase';
-import { Shield, Menu, X, LogOut, Plus, User as UserIcon, LayoutDashboard, Globe } from 'lucide-react';
+import { Shield, Menu, X, LogOut, Plus, User as UserIcon, LayoutDashboard, Globe, Activity } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { user } = useAuth();
@@ -41,11 +41,17 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className="bg-surface border-b border-slate-700 sticky top-0 z-50">
+    <nav className="bg-surface border-b border-slate-700 sticky top-0 z-50 shadow-lg shadow-black/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <Shield className="h-8 w-8 text-primary" />
+            <div className="relative">
+                <Shield className="h-8 w-8 text-primary" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+            </div>
             <span className="text-2xl font-bold tracking-tighter text-white">
               Key<span className="text-primary">Vault</span>
             </span>
@@ -59,7 +65,7 @@ const Navbar: React.FC = () => {
               {/* Language Switcher Desktop */}
               <button 
                 onClick={toggleLanguage}
-                className="bg-slate-800 text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 border border-slate-700"
+                className="bg-slate-800 text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 border border-slate-700 hover:border-primary/50"
               >
                 <Globe size={16} />
                 {getLangLabel(language)}
@@ -70,7 +76,7 @@ const Navbar: React.FC = () => {
                   <Link to="/dashboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2">
                     <LayoutDashboard size={16} /> {t.nav.dashboard}
                   </Link>
-                  <Link to="/create" className="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors">
+                  <Link to="/create" className="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/20">
                     <Plus size={16} /> {t.nav.newKey}
                   </Link>
                   <button onClick={handleLogout} className="text-gray-300 hover:text-accent px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2">
@@ -85,7 +91,7 @@ const Navbar: React.FC = () => {
                   </div>
                 </>
               ) : (
-                <button onClick={handleLogin} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20">
+                <button onClick={handleLogin} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-bold transition-colors shadow-lg shadow-indigo-500/20">
                   {t.nav.login}
                 </button>
               )}
