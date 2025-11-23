@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User, AuthError } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment, Timestamp, DocumentReference, enableNetwork, disableNetwork, DocumentSnapshot, QuerySnapshot } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from "firebase/auth";
+import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment, Timestamp, DocumentReference, enableNetwork, DocumentSnapshot, QuerySnapshot } from "firebase/firestore";
 import { PasteData } from "../types";
 
 // Configuration provided by user
@@ -30,7 +30,6 @@ export const loginWithGoogle = async () => {
   } catch (error: any) {
     console.error("Login failed", error);
     
-    // NETLIFY / GITHUB SPECIFIC ERROR HANDLING
     if (error.code === 'auth/unauthorized-domain') {
         const domain = window.location.hostname;
         throw new Error(`DOMAIN ERROR: You must add "${domain}" to the Authorized Domains list in your Firebase Console (Authentication > Settings).`);
@@ -46,70 +45,13 @@ export const logoutUser = async () => {
   await signOut(auth);
 };
 
-// Helper for timeouts
-const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(errorMessage)), ms);
-        promise
-            .then(value => {
-                clearTimeout(timer);
-                resolve(value);
-            })
-            .catch(reason => {
-                clearTimeout(timer);
-                reject(reason);
-            });
-    });
-};
-
-// RETRY HELPER: The secret to 100% reliability
-// If Firestore says "Offline", we kick it and try again.
-const retryOperation = async <T>(operation: () => Promise<T>, retries = 2): Promise<T> => {
-    try {
-        return await operation();
-    } catch (error: any) {
-        const isNetworkError = 
-            error.code === 'unavailable' || 
-            error.message?.includes('offline') || 
-            error.message?.includes('network');
-
-        if (isNetworkError && retries > 0) {
-            console.warn(`Network glitch detected. Retrying... (${retries} attempts left)`);
-            
-            // Force reconnect
-            try { await enableNetwork(db); } catch(e) {}
-            
-            // Wait 1 second before retry
-            await new Promise(r => setTimeout(r, 1000));
-            
-            return retryOperation(operation, retries - 1);
-        }
-        throw error;
-    }
-};
-
-// ROBUST Connection Checker
+// SIMPLIFIED CONNECTION CHECK
+// We no longer block actions based on this. It's just for the UI status dot.
 export const checkDbConnection = async (): Promise<boolean> => {
     try {
-        // 1. Try to ensure network is enabled (don't await strictly, fire and forget)
-        enableNetwork(db).catch(() => {});
-        
-        // 2. Try to fetch a health check doc with a generous timeout for cold starts
-        // We use a specific doc path to ensure we are testing reads
-        const healthRef = doc(db, "pastes", "_health_check_stub_");
-        
-        await withTimeout(
-            getDoc(healthRef), 
-            10000, // 10s timeout
-            "Ping Timeout"
-        );
-        
-        return true;
-    } catch (e: any) {
-        // If permission denied, it means we CONNECTED but were rejected. That counts as "Online".
-        if (e.code === 'permission-denied' || e.message?.includes("permission")) return true;
-        
-        console.warn("Connection check failed (Offline mode active)");
+        // Just checking if online navigator status is true
+        return navigator.onLine;
+    } catch (e) {
         return false;
     }
 };
@@ -121,7 +63,6 @@ interface CreatePasteParams extends Omit<PasteData, 'id' | 'createdAt' | 'views'
 }
 
 export const createPaste = async (data: CreatePasteParams) => {
-  const operation = async () => {
     let expiresAt = null;
     
     // Explicitly handle duration logic
@@ -144,35 +85,29 @@ export const createPaste = async (data: CreatePasteParams) => {
         views: 0
     };
 
-    // Use strict timeout but inside the retry loop
-    const docRef = await withTimeout<DocumentReference>(
-        addDoc(collection(db, "pastes"), docData), 
-        15000, // 15s timeout for writes
-        "SERVER TIMEOUT: Could not save data. Internet is too slow."
-    );
-    
-    return docRef.id;
-  };
-
-  try {
-    return await retryOperation(operation);
-  } catch (error: any) {
-    console.error("Error creating paste", error);
-    if (error.code === 'permission-denied') {
-        throw new Error("ACCESS DENIED: Firebase rules are blocking this write.");
+    try {
+        // DIRECT CALL - No strict timeouts, no retry loops. 
+        // Let Firebase SDK handle the connection naturally.
+        const docRef = await addDoc(collection(db, "pastes"), docData);
+        return docRef.id;
+    } catch (error: any) {
+        console.error("Error creating paste", error);
+        
+        // Detailed Error Analysis
+        if (error.code === 'permission-denied') {
+            throw new Error("CRITICAL: Database Locked. Go to Firebase Console -> Firestore Database -> Rules and change 'allow read, write: if false' to 'if true'.");
+        }
+        if (error.code === 'unavailable') {
+             throw new Error("NETWORK: Firebase is unreachable. Check if your firewall is blocking Google services.");
+        }
+        throw error;
     }
-    throw error;
-  }
 };
 
 export const getPaste = async (id: string) => {
-  const operation = async () => {
+  try {
     const docRef = doc(db, "pastes", id);
-    const docSnap = await withTimeout<DocumentSnapshot>(
-        getDoc(docRef),
-        15000,
-        "Slow connection: Could not retrieve key."
-    );
+    const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
       // Fire and forget view increment
@@ -181,40 +116,33 @@ export const getPaste = async (id: string) => {
     } else {
       return null;
     }
-  };
-
-  try {
-    return await retryOperation(operation);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching paste", error);
+    if (error.code === 'permission-denied') {
+        throw new Error("CRITICAL: Database Locked. Update Firestore Rules in Console.");
+    }
     throw error;
   }
 };
 
 export const getUserPastes = async (uid: string) => {
-  const operation = async () => {
+  try {
     const q = query(collection(db, "pastes"), where("authorId", "==", uid));
-    const querySnapshot = await withTimeout<QuerySnapshot>(
-        getDocs(q),
-        15000,
-        "Could not load dashboard."
-    );
+    const querySnapshot = await getDocs(q);
+    
     const pastes: PasteData[] = [];
     querySnapshot.forEach((doc) => {
       pastes.push({ id: doc.id, ...doc.data() } as PasteData);
     });
-    // Sort manually by creation time (Newest First)
+    
     return pastes.sort((a, b) => {
         const timeA = a.createdAt?.seconds || 0;
         const timeB = b.createdAt?.seconds || 0;
         return timeB - timeA;
     });
-  };
-
-  try {
-    return await retryOperation(operation);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching user pastes", error);
+    // Don't throw here, just return empty to not break dashboard
     return [];
   }
 };

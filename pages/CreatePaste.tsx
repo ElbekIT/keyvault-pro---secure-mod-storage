@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/AuthContext';
 import { useLanguage } from '../components/LanguageContext';
-import { createPaste, checkDbConnection } from '../services/firebase';
-import { Lock, Globe, RefreshCw, Save, Clock, ShieldCheck, AlertCircle, WifiOff } from 'lucide-react';
+import { createPaste } from '../services/firebase';
+import { Lock, Globe, RefreshCw, Save, Clock, ShieldCheck, AlertCircle, WifiOff, AlertTriangle } from 'lucide-react';
 
 const CreatePaste: React.FC = () => {
   const { user } = useAuth();
@@ -51,16 +51,7 @@ const CreatePaste: React.FC = () => {
     setStatusMsg(t.create.encrypting);
 
     try {
-      // 1. Connection Health Check with Retry
-      // We assume the service layer handles retries, but we do a quick check here
-      // to fail fast if totally offline.
-      const isOnline = await checkDbConnection();
-      if (!isOnline) {
-        // We try anyway, because the service layer has auto-reconnect logic
-        console.warn("UI thinks offline, but attempting write via service layer...");
-      }
-
-      // 2. Submit
+      // Direct call - no pre-checks. If internet is bad, createPaste will throw.
       const id = await createPaste({
         title: title || 'Untitled Secure Paste',
         content,
@@ -80,12 +71,7 @@ const CreatePaste: React.FC = () => {
       setSubmitting(false);
       
       let displayMsg = error.message;
-      if (displayMsg.includes("Missing or insufficient permissions")) {
-         displayMsg = "DATABASE PERMISSION DENIED. Check Firestore Rules.";
-      } else if (displayMsg.includes("offline")) {
-         displayMsg = "NETWORK ERROR: You appear to be offline. Please check your connection.";
-      }
-      
+      // Make error very visible
       setErrorMsg(displayMsg);
     }
   };
@@ -101,11 +87,11 @@ const CreatePaste: React.FC = () => {
         )}
 
         {errorMsg && (
-            <div className="bg-red-500/10 border-b border-red-500/50 p-4 flex items-center gap-3 text-red-400 animate-fade-in-down">
-                <WifiOff className="flex-shrink-0" />
+            <div className="bg-red-500/10 border-b border-red-500/50 p-4 flex items-start gap-3 text-red-400 animate-fade-in-down">
+                <AlertTriangle className="flex-shrink-0 mt-1" />
                 <div className="text-left">
-                    <p className="text-sm font-bold">{errorMsg}</p>
-                    <p className="text-xs opacity-75 mt-1">Check internet connection and try again.</p>
+                    <p className="text-sm font-bold uppercase">System Error</p>
+                    <p className="text-sm opacity-90 mt-1 font-mono">{errorMsg}</p>
                 </div>
             </div>
         )}
