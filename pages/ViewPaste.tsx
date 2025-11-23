@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useLanguage } from '../components/LanguageContext';
 import { getPaste } from '../services/firebase';
 import { PasteData } from '../types';
-import { Copy, Check, Shield, User, Calendar } from 'lucide-react';
+import { Copy, Check, Shield, User, Calendar, Clock, AlertTriangle } from 'lucide-react';
 
 const ViewPaste: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -12,15 +12,29 @@ const ViewPaste: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
     if (id) {
       getPaste(id)
         .then(data => {
-            if (data) setPaste(data);
-            else setError(t.view.notFoundDesc);
+            if (data) {
+                // Check for expiration
+                if (data.expiresAt) {
+                    const now = new Date();
+                    const expiry = new Date(data.expiresAt.seconds * 1000);
+                    if (now > expiry) {
+                        setIsExpired(true);
+                        setLoading(false);
+                        return;
+                    }
+                }
+                setPaste(data);
+            } else {
+                setError(t.view.notFoundDesc);
+            }
         })
-        .catch(err => setError('System error fetching data.'))
+        .catch(err => setError('System error fetching data. ' + err.message))
         .finally(() => setLoading(false));
     }
   }, [id, t]);
@@ -38,6 +52,21 @@ const ViewPaste: React.FC = () => {
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="mt-4 text-gray-400 animate-pulse">{t.view.loading}</p>
+        </div>
+    );
+  }
+
+  if (isExpired) {
+    return (
+        <div className="max-w-2xl mx-auto mt-20 p-8 bg-surface border border-red-900/50 rounded-2xl text-center shadow-2xl shadow-red-900/10">
+            <div className="bg-red-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle className="h-10 w-10 text-red-500" />
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-4">{t.view.expiredTitle}</h2>
+            <p className="text-gray-400 mb-8 text-lg">{t.view.expiredDesc}</p>
+            <Link to="/" className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                {t.view.returnHome}
+            </Link>
         </div>
     );
   }
@@ -68,6 +97,11 @@ const ViewPaste: React.FC = () => {
                         <Calendar size={14} className="text-secondary" /> 
                         {paste.createdAt ? new Date(paste.createdAt.seconds * 1000).toLocaleDateString() : t.view.justNow}
                     </span>
+                    {paste.expiresAt && (
+                        <span className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded text-amber-400">
+                             <Clock size={14} /> {t.view.expiresIn} {Math.ceil((paste.expiresAt.seconds * 1000 - Date.now()) / (1000 * 60 * 60 * 24))} days
+                        </span>
+                    )}
                     {paste.type === 'key' && (
                         <span className="bg-amber-500/20 text-amber-400 px-2 py-1 rounded border border-amber-500/30 text-xs font-bold uppercase tracking-wider">
                             {t.view.keyType}

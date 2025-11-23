@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/AuthContext';
 import { useLanguage } from '../components/LanguageContext';
 import { createPaste } from '../services/firebase';
-import { Lock, Globe, RefreshCw, Save } from 'lucide-react';
+import { Lock, Globe, RefreshCw, Save, Clock } from 'lucide-react';
 
 const CreatePaste: React.FC = () => {
   const { user } = useAuth();
@@ -13,6 +13,7 @@ const CreatePaste: React.FC = () => {
   const [content, setContent] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [type, setType] = useState<'text' | 'key' | 'json'>('text');
+  const [duration, setDuration] = useState<number>(-1); // -1 = forever
   const [submitting, setSubmitting] = useState(false);
 
   const generateRandomKey = () => {
@@ -29,6 +30,16 @@ const CreatePaste: React.FC = () => {
     if (!title) setTitle('Generated Key ' + new Date().toLocaleTimeString());
   };
 
+  const getDurationLabel = (mins: number) => {
+    switch(mins) {
+        case 60: return t.create.durations.hour1;
+        case 1440: return t.create.durations.day1;
+        case 10080: return t.create.durations.week1;
+        case 43200: return t.create.durations.month1;
+        default: return t.create.durations.forever;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !content.trim()) return;
@@ -41,11 +52,17 @@ const CreatePaste: React.FC = () => {
         authorId: user.uid,
         authorName: user.displayName || 'Anonymous',
         isPrivate,
-        type
+        type,
+        durationInMinutes: duration,
+        durationLabel: getDurationLabel(duration)
       });
       navigate(`/view/${id}`);
-    } catch (error) {
-      alert(t.create.error);
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.message && (error.message.includes("timeout") || error.message.includes("offline"))
+         ? t.create.timeout
+         : t.create.error;
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
@@ -85,25 +102,52 @@ const CreatePaste: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col md:flex-row gap-6 justify-between items-center pt-4 border-t border-slate-700">
-            <div className="flex items-center gap-6 w-full md:w-auto">
-                <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-6 pt-4 border-t border-slate-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="flex flex-col gap-2">
                     <label className="text-sm text-gray-400">{t.create.visibility}</label>
-                    <button 
-                        type="button"
-                        onClick={() => setIsPrivate(!isPrivate)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isPrivate ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-700 text-gray-300'}`}
-                    >
-                        {isPrivate ? <><Lock size={14} /> {t.create.private}</> : <><Globe size={14} /> {t.create.public}</>}
-                    </button>
+                    <div className="flex gap-2">
+                        <button 
+                            type="button"
+                            onClick={() => setIsPrivate(false)}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border ${!isPrivate ? 'bg-primary/20 text-primary border-primary/50' : 'bg-slate-800 text-gray-400 border-slate-700'}`}
+                        >
+                            <Globe size={14} /> {t.create.public}
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => setIsPrivate(true)}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border ${isPrivate ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-slate-800 text-gray-400 border-slate-700'}`}
+                        >
+                            <Lock size={14} /> {t.create.private}
+                        </button>
+                    </div>
                 </div>
-                
-                <div className="flex items-center gap-2">
+
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm text-gray-400">{t.create.duration}</label>
+                    <div className="relative">
+                        <Clock size={16} className="absolute left-3 top-2.5 text-gray-500" />
+                        <select 
+                            value={duration}
+                            onChange={(e) => setDuration(Number(e.target.value))}
+                            className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-md pl-10 pr-3 py-2 outline-none focus:border-primary appearance-none"
+                        >
+                            <option value={-1}>{t.create.durations.forever}</option>
+                            <option value={60}>{t.create.durations.hour1}</option>
+                            <option value={1440}>{t.create.durations.day1}</option>
+                            <option value={10080}>{t.create.durations.week1}</option>
+                            <option value={43200}>{t.create.durations.month1}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
                     <label className="text-sm text-gray-400">{t.create.type}</label>
                     <select 
                         value={type}
                         onChange={(e) => setType(e.target.value as any)}
-                        className="bg-slate-900 border border-slate-700 text-white text-sm rounded-md px-2 py-1.5 outline-none focus:border-primary"
+                        className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-md px-3 py-2 outline-none focus:border-primary"
                     >
                         <option value="text">{t.create.text}</option>
                         <option value="json">{t.create.json}</option>
@@ -115,9 +159,16 @@ const CreatePaste: React.FC = () => {
             <button 
                 type="submit" 
                 disabled={submitting}
-                className="w-full md:w-auto bg-primary hover:bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+                className="w-full bg-primary hover:bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {submitting ? t.create.encrypting : <><Save size={18} /> {t.create.save}</>}
+                {submitting ? (
+                    <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        {t.create.encrypting}
+                    </>
+                ) : (
+                    <><Save size={18} /> {t.create.save}</>
+                )}
             </button>
           </div>
         </form>

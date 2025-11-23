@@ -12,6 +12,8 @@ export interface PasteData {
   authorId: string;
   authorName: string;
   createdAt: any; // Firestore Timestamp
+  expiresAt: any | null; // Firestore Timestamp or null
+  durationLabel: string; // e.g., "1 Day", "Forever"
   isPrivate: boolean;
   views: number;
   type: 'text' | 'json' | 'key';

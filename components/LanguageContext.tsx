@@ -14,7 +14,7 @@ export const translations = {
       createKey: 'Create Key',
     },
     home: {
-      status: 'Secure V2.0 Protocol Active',
+      status: 'Secure V3.0 Protocol Active',
       titleStart: 'The Ultimate',
       titleEnd: 'Mod Key',
       titleSuffix: 'Storage',
@@ -42,6 +42,9 @@ export const translations = {
       view: 'View',
       copied: 'Link copied!',
       loading: 'Loading Vault...',
+      expires: 'Expires:',
+      never: 'Never',
+      expired: 'EXPIRED'
     },
     create: {
       header: 'Create New Secure Paste',
@@ -52,6 +55,7 @@ export const translations = {
       contentPlaceholder: 'Paste your script, JSON, or Key here...',
       visibility: 'Visibility:',
       type: 'Type:',
+      duration: 'Duration:',
       private: 'Private',
       public: 'Public',
       text: 'Plain Text',
@@ -60,11 +64,21 @@ export const translations = {
       save: 'Save to Vault',
       encrypting: 'Encrypting...',
       error: 'Error creating paste',
+      timeout: 'Connection timed out. Please check your internet.',
+      durations: {
+        hour1: '1 Hour',
+        day1: '1 Day',
+        week1: '1 Week',
+        month1: '1 Month',
+        forever: 'Forever (No Limit)'
+      }
     },
     view: {
       loading: 'Decrypting Vault Data...',
       notFoundTitle: 'Access Denied',
       notFoundDesc: 'Paste not found or access denied.',
+      expiredTitle: 'Key Expired',
+      expiredDesc: 'This secure key has reached its time limit and has been automatically deleted from view.',
       returnHome: 'Return Home',
       keyType: 'License Key',
       justNow: 'Just now',
@@ -72,9 +86,10 @@ export const translations = {
       copyRaw: 'Copy Raw',
       readOnly: 'ReadOnly Mode',
       createOwn: 'Create your own secure paste',
+      expiresIn: 'Expires in'
     },
     about: {
-      tag: 'System Architecture v2.0',
+      tag: 'System Architecture v3.0',
       titleStart: 'Fortified Digital',
       titleEnd: 'Vault',
       desc: 'KeyVault Pro is engineered for the underground development community. We provide persistent, encrypted storage for mod configurations, scripts, and license keys.',
@@ -114,7 +129,7 @@ export const translations = {
       createKey: 'Создать Ключ',
     },
     home: {
-      status: 'Протокол защиты V2.0 активен',
+      status: 'Протокол защиты V3.0 активен',
       titleStart: 'Лучшее хранилище',
       titleEnd: 'Мод-Ключей',
       titleSuffix: '',
@@ -142,6 +157,9 @@ export const translations = {
       view: 'Открыть',
       copied: 'Ссылка скопирована!',
       loading: 'Загрузка хранилища...',
+      expires: 'Истекает:',
+      never: 'Никогда',
+      expired: 'ИСТЕК'
     },
     create: {
       header: 'Создать безопасную запись',
@@ -152,6 +170,7 @@ export const translations = {
       contentPlaceholder: 'Вставьте скрипт, JSON или ключ сюда...',
       visibility: 'Видимость:',
       type: 'Тип:',
+      duration: 'Срок действия:',
       private: 'Приватный',
       public: 'Публичный',
       text: 'Текст',
@@ -160,11 +179,21 @@ export const translations = {
       save: 'Сохранить в сейф',
       encrypting: 'Шифрование...',
       error: 'Ошибка создания записи',
+      timeout: 'Тайм-аут соединения. Проверьте интернет.',
+      durations: {
+        hour1: '1 Час',
+        day1: '1 День',
+        week1: '1 Неделя',
+        month1: '1 Месяц',
+        forever: 'Навсегда (Без лимита)'
+      }
     },
     view: {
       loading: 'Расшифровка данных...',
       notFoundTitle: 'Доступ запрещен',
       notFoundDesc: 'Запись не найдена или доступ закрыт.',
+      expiredTitle: 'Срок действия истек',
+      expiredDesc: 'Срок действия этого безопасного ключа истек, и он был автоматически удален из просмотра.',
       returnHome: 'На главную',
       keyType: 'Лиценз. Ключ',
       justNow: 'Только что',
@@ -172,9 +201,10 @@ export const translations = {
       copyRaw: 'Копировать',
       readOnly: 'Режим чтения',
       createOwn: 'Создать свою запись',
+      expiresIn: 'Истекает через'
     },
     about: {
-      tag: 'Архитектура системы v2.0',
+      tag: 'Архитектура системы v3.0',
       titleStart: 'Цифровой',
       titleEnd: 'Бункер',
       desc: 'KeyVault Pro разработан для андеграунд сообщества разработчиков. Мы обеспечиваем постоянное зашифрованное хранение конфигураций модов, скриптов и лицензионных ключей.',
@@ -214,7 +244,7 @@ export const translations = {
       createKey: 'Kalit Yaratish',
     },
     home: {
-      status: 'Xavfsiz V2.0 Protokol Faol',
+      status: 'Xavfsiz V3.0 Protokol Faol',
       titleStart: 'Eng Z o\'r',
       titleEnd: 'Mod Kalit',
       titleSuffix: 'Ombori',
@@ -242,6 +272,9 @@ export const translations = {
       view: 'Ko\'rish',
       copied: 'Havola nusxalandi!',
       loading: 'Seyf yuklanmoqda...',
+      expires: 'Muddati:',
+      never: 'Cheksiz',
+      expired: 'MUDDATI TUGAGAN'
     },
     create: {
       header: 'Yangi Xavfsiz Fayl Yaratish',
@@ -252,6 +285,7 @@ export const translations = {
       contentPlaceholder: 'Skript, JSON yoki Kalitni shu yerga joylang...',
       visibility: 'Ko\'rinish:',
       type: 'Tur:',
+      duration: 'Amal qilish muddati:',
       private: 'Maxfiy',
       public: 'Ommaviy',
       text: 'Oddiy Matn',
@@ -259,12 +293,22 @@ export const translations = {
       key: 'Litsenziya Kaliti',
       save: 'Seyfga Saqlash',
       encrypting: 'Shifrlanmoqda...',
-      error: 'Xatolik yuz berdi',
+      error: 'Yaratishda xatolik yuz berdi. Iltimos qaytadan urinib ko\'ring.',
+      timeout: 'Internet aloqasi sekin. Qaytadan urinib ko\'ring.',
+      durations: {
+        hour1: '1 Soat',
+        day1: '1 Kun',
+        week1: '1 Hafta',
+        month1: '1 Oy',
+        forever: 'Cheksiz (Abadiy)'
+      }
     },
     view: {
       loading: 'Ma\'lumotlar deshifrlanmoqda...',
       notFoundTitle: 'Kirish Taqiqlandi',
       notFoundDesc: 'Fayl topilmadi yoki kirish huquqi yo\'q.',
+      expiredTitle: 'Kalit Muddati Tugagan',
+      expiredDesc: 'Ushbu xavfsiz kalitning vaqti tugagan va u avtomatik ravishda o\'chirib tashlangan.',
       returnHome: 'Bosh Sahifaga',
       keyType: 'Litsenziya Kaliti',
       justNow: 'Hozirgina',
@@ -272,9 +316,10 @@ export const translations = {
       copyRaw: 'Nusxalash',
       readOnly: 'O\'qish rejimi',
       createOwn: 'O\'z xavfsiz faylingizni yarating',
+      expiresIn: 'Qolgan vaqt'
     },
     about: {
-      tag: 'Tizim Arxitekturasi v2.0',
+      tag: 'Tizim Arxitekturasi v3.0',
       titleStart: 'Raqamli',
       titleEnd: 'Bunker',
       desc: 'KeyVault Pro yashirin dasturchilar hamjamiyati uchun ishlab chiqilgan. Biz mod konfiguratsiyalari, skriptlar va litsenziya kalitlari uchun doimiy, shifrlangan saqlashni ta\'minlaymiz.',

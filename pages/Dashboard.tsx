@@ -4,7 +4,7 @@ import { useAuth } from '../components/AuthContext';
 import { useLanguage } from '../components/LanguageContext';
 import { getUserPastes } from '../services/firebase';
 import { PasteData } from '../types';
-import { FileText, Eye, Clock, Key, Copy, Plus } from 'lucide-react';
+import { FileText, Eye, Clock, Key, Copy, Plus, Hourglass } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -32,6 +32,18 @@ const Dashboard: React.FC = () => {
     const url = `${window.location.origin}/#/view/${id}`;
     navigator.clipboard.writeText(url);
     alert(t.dashboard.copied);
+  };
+
+  const getExpiryDisplay = (paste: PasteData) => {
+    if (!paste.expiresAt) return <span className="text-green-400">{t.dashboard.never}</span>;
+    
+    const now = new Date();
+    const expiry = new Date(paste.expiresAt.seconds * 1000);
+    const diffTime = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffTime < 0) return <span className="text-red-500 font-bold">{t.dashboard.expired}</span>;
+    return <span className="text-amber-400">{diffDays} days</span>;
   };
 
   if (!user) return <div className="p-10 text-center text-white">Access Denied. Redirecting...</div>;
@@ -65,7 +77,7 @@ const Dashboard: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pastes.map((paste) => (
-            <div key={paste.id} className="bg-surface rounded-xl border border-slate-700 overflow-hidden hover:border-primary/50 transition-all group">
+            <div key={paste.id} className="bg-surface rounded-xl border border-slate-700 overflow-hidden hover:border-primary/50 transition-all group relative">
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
                     <div className={`p-2 rounded-lg ${paste.type === 'key' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}>
@@ -77,9 +89,16 @@ const Dashboard: React.FC = () => {
                 </div>
                 
                 <h3 className="text-lg font-bold text-white truncate mb-2">{paste.title}</h3>
-                <div className="flex items-center gap-4 text-gray-400 text-sm mb-6">
-                    <span className="flex items-center gap-1"><Eye size={14} /> {paste.views}</span>
-                    <span className="flex items-center gap-1"><Clock size={14} /> {new Date(paste.createdAt?.seconds * 1000).toLocaleDateString()}</span>
+                <div className="flex flex-col gap-2 text-gray-400 text-sm mb-6">
+                    <div className="flex justify-between">
+                        <span className="flex items-center gap-1"><Eye size={14} /> {paste.views} views</span>
+                        <span className="flex items-center gap-1"><Clock size={14} /> {new Date(paste.createdAt?.seconds * 1000).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                        <Hourglass size={14} /> 
+                        <span className="text-xs uppercase tracking-wide text-gray-500">{t.dashboard.expires}</span>
+                        <span className="text-xs font-mono">{getExpiryDisplay(paste)}</span>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2 mt-auto">

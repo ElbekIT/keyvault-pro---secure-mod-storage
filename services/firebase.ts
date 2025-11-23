@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment, Timestamp, DocumentReference } from "firebase/firestore";
 import { PasteData } from "../types";
 
 // Configuration provided by user
@@ -37,14 +37,58 @@ export const logoutUser = async () => {
   await signOut(auth);
 };
 
-// Database Services
-export const createPaste = async (data: Omit<PasteData, 'id' | 'createdAt' | 'views'>) => {
-  try {
-    const docRef = await addDoc(collection(db, "pastes"), {
-      ...data,
-      createdAt: serverTimestamp(),
-      views: 0
+// Helper for timeouts
+const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(errorMessage)), ms);
+        promise
+            .then(value => {
+                clearTimeout(timer);
+                resolve(value);
+            })
+            .catch(reason => {
+                clearTimeout(timer);
+                reject(reason);
+            });
     });
+};
+
+// Database Services
+interface CreatePasteParams extends Omit<PasteData, 'id' | 'createdAt' | 'views' | 'expiresAt' | 'durationLabel'> {
+    durationInMinutes: number; // -1 for forever
+    durationLabel: string;
+}
+
+export const createPaste = async (data: CreatePasteParams) => {
+  try {
+    let expiresAt = null;
+    
+    if (data.durationInMinutes > 0) {
+        const now = new Date();
+        const expiryDate = new Date(now.getTime() + data.durationInMinutes * 60000);
+        expiresAt = Timestamp.fromDate(expiryDate);
+    }
+
+    const docData = {
+        title: data.title,
+        content: data.content,
+        authorId: data.authorId,
+        authorName: data.authorName,
+        isPrivate: data.isPrivate,
+        type: data.type,
+        durationLabel: data.durationLabel,
+        expiresAt: expiresAt,
+        createdAt: serverTimestamp(),
+        views: 0
+    };
+
+    // Use a timeout to prevent infinite "Encrypting..." state
+    const docRef = await withTimeout<DocumentReference>(
+        addDoc(collection(db, "pastes"), docData), 
+        15000, 
+        "Database connection timeout"
+    );
+    
     return docRef.id;
   } catch (error) {
     console.error("Error creating paste", error);
@@ -59,9 +103,11 @@ export const getPaste = async (id: string) => {
     
     if (docSnap.exists()) {
       // Increment view count
-      await updateDoc(docRef, {
+      // We don't await this to speed up the UI response
+      updateDoc(docRef, {
         views: increment(1)
-      });
+      }).catch(console.error);
+
       return { id: docSnap.id, ...docSnap.data() } as PasteData;
     } else {
       return null;
