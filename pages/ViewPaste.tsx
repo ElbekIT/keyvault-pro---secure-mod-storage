@@ -115,7 +115,7 @@ const ViewPaste: React.FC = () => {
       
       {/* Security Badge */}
       <div className="flex justify-center mb-8">
-        <div className="inline-flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-full px-4 py-1 text-xs font-mono text-gray-400">
+        <div className="inline-flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-full px-4 py-1 text-xs font-mono text-gray-400 select-none">
             <Shield size={12} className="text-primary" />
             SECURE CONNECTION ESTABLISHED
         </div>
@@ -161,13 +161,14 @@ const ViewPaste: React.FC = () => {
         </div>
 
         {/* Content Body */}
+        {/* IMPORTANT: Added 'allow-select' class here so users can copy the key manually if needed */}
         <div className="bg-[#0d1117] relative group min-h-[200px]">
             {isKey ? (
                 <div className="p-10 flex items-center justify-center flex-col">
                     <p className="text-gray-500 mb-4 text-sm font-mono uppercase tracking-widest">Decrypted License Key</p>
                     <div className="bg-slate-900 border-2 border-primary/30 p-6 rounded-lg shadow-2xl shadow-primary/10 relative overflow-hidden group-hover:border-primary transition-colors w-full max-w-2xl text-center">
                         <div className="absolute top-0 left-0 w-full h-1 bg-primary/50"></div>
-                        <code className="text-2xl md:text-4xl font-mono text-primary font-bold tracking-wider break-all selection:bg-primary selection:text-white">
+                        <code className="allow-select text-2xl md:text-4xl font-mono text-primary font-bold tracking-wider break-all selection:bg-primary selection:text-white">
                             {paste.content}
                         </code>
                     </div>
@@ -177,7 +178,7 @@ const ViewPaste: React.FC = () => {
                     <div className="absolute top-0 left-0 w-8 h-full bg-slate-900/50 border-r border-slate-800 flex flex-col items-center pt-4 text-xs text-slate-600 font-mono select-none">
                         <span>1</span><span>2</span><span>3</span>
                     </div>
-                    <pre className="p-6 pl-12 overflow-x-auto text-sm md:text-base font-mono text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
+                    <pre className="allow-select p-6 pl-12 overflow-x-auto text-sm md:text-base font-mono text-gray-300 leading-relaxed whitespace-pre-wrap break-words selection:bg-blue-500/30">
                         {paste.content}
                     </pre>
                 </div>
@@ -185,7 +186,7 @@ const ViewPaste: React.FC = () => {
         </div>
         
         {/* Footer */}
-        <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex justify-between items-center text-xs text-slate-500 font-mono">
+        <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex justify-between items-center text-xs text-slate-500 font-mono select-none">
             <div className="flex items-center gap-2">
                 <Terminal size={12} />
                 <span>EOH (End of Header)</span>

@@ -14,10 +14,14 @@ const Navbar: React.FC = () => {
 
   // Check connection on mount
   useEffect(() => {
-    checkDbConnection().then(setIsOnline);
-    const interval = setInterval(() => {
-        checkDbConnection().then(setIsOnline);
-    }, 30000); // Check every 30s
+    const check = async () => {
+        const status = await checkDbConnection();
+        setIsOnline(status);
+    };
+    check();
+    
+    // Poll less frequently (45s) to avoid spamming network logs
+    const interval = setInterval(check, 45000);
     return () => clearInterval(interval);
   }, []);
 

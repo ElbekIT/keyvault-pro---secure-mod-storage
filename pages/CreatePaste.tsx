@@ -51,11 +51,13 @@ const CreatePaste: React.FC = () => {
     setStatusMsg(t.create.encrypting);
 
     try {
-      // 1. Force Connection Check
-      // This prevents the "Infinite Spinner" by failing fast if no network
+      // 1. Connection Health Check with Retry
+      // We assume the service layer handles retries, but we do a quick check here
+      // to fail fast if totally offline.
       const isOnline = await checkDbConnection();
       if (!isOnline) {
-        throw new Error("NETWORK ERROR: Could not connect to the secure database. Please check your internet.");
+        // We try anyway, because the service layer has auto-reconnect logic
+        console.warn("UI thinks offline, but attempting write via service layer...");
       }
 
       // 2. Submit
@@ -80,6 +82,8 @@ const CreatePaste: React.FC = () => {
       let displayMsg = error.message;
       if (displayMsg.includes("Missing or insufficient permissions")) {
          displayMsg = "DATABASE PERMISSION DENIED. Check Firestore Rules.";
+      } else if (displayMsg.includes("offline")) {
+         displayMsg = "NETWORK ERROR: You appear to be offline. Please check your connection.";
       }
       
       setErrorMsg(displayMsg);
@@ -97,13 +101,16 @@ const CreatePaste: React.FC = () => {
         )}
 
         {errorMsg && (
-            <div className="bg-red-500/10 border-b border-red-500/50 p-4 flex items-center gap-3 text-red-400">
+            <div className="bg-red-500/10 border-b border-red-500/50 p-4 flex items-center gap-3 text-red-400 animate-fade-in-down">
                 <WifiOff className="flex-shrink-0" />
-                <p className="text-sm font-bold">{errorMsg}</p>
+                <div className="text-left">
+                    <p className="text-sm font-bold">{errorMsg}</p>
+                    <p className="text-xs opacity-75 mt-1">Check internet connection and try again.</p>
+                </div>
             </div>
         )}
 
-        <div className="p-6 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+        <div className="p-6 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center select-none">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <ShieldCheck className="text-primary" /> {t.create.header}
             </h2>
@@ -114,7 +121,7 @@ const CreatePaste: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">{t.create.titleLabel}</label>
+            <label className="block text-sm font-medium text-gray-400 mb-2 select-none">{t.create.titleLabel}</label>
             <input 
               type="text" 
               value={title} 
@@ -125,7 +132,7 @@ const CreatePaste: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">{t.create.contentLabel}</label>
+            <label className="block text-sm font-medium text-gray-400 mb-2 select-none">{t.create.contentLabel}</label>
             <div className="relative">
                 <textarea 
                 value={content}
@@ -135,7 +142,7 @@ const CreatePaste: React.FC = () => {
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white font-mono text-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none resize-y"
                 required
                 />
-                <div className="absolute bottom-3 right-3 text-xs text-slate-600 font-mono">
+                <div className="absolute bottom-3 right-3 text-xs text-slate-600 font-mono select-none">
                     AES-256 READY
                 </div>
             </div>
@@ -144,7 +151,7 @@ const CreatePaste: React.FC = () => {
           <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-800">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-gray-400 flex items-center gap-1">
+                    <label className="text-sm font-bold text-gray-400 flex items-center gap-1 select-none">
                         <Globe size={14}/> {t.create.visibility}
                     </label>
                     <div className="flex bg-slate-800 p-1 rounded-lg">
@@ -166,7 +173,7 @@ const CreatePaste: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-gray-400 flex items-center gap-1">
+                    <label className="text-sm font-bold text-gray-400 flex items-center gap-1 select-none">
                         <Clock size={14}/> {t.create.duration}
                     </label>
                     <select 
@@ -183,7 +190,7 @@ const CreatePaste: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-gray-400 flex items-center gap-1">
+                    <label className="text-sm font-bold text-gray-400 flex items-center gap-1 select-none">
                         <ShieldCheck size={14}/> {t.create.type}
                     </label>
                     <select 
@@ -199,7 +206,7 @@ const CreatePaste: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 flex items-center justify-between">
+          <div className="pt-4 flex items-center justify-between select-none">
             <div className="text-xs text-gray-500 flex items-center gap-1">
                 <AlertCircle size={12} />
                 Encrypted via Google Cloud Protocol

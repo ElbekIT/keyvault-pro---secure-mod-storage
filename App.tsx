@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import CreatePaste from './pages/CreatePaste';
 import ViewPaste from './pages/ViewPaste';
 import About from './pages/About';
+import SecurityShield from './components/SecurityShield';
 
 // Protected Route Wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -25,6 +26,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const AppContent: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen">
+      <SecurityShield />
       <Navbar />
       <main className="flex-grow">
         <Routes>
@@ -49,7 +51,7 @@ const AppContent: React.FC = () => {
           <Route path="/view/:id" element={<ViewPaste />} />
         </Routes>
       </main>
-      <footer className="bg-surface border-t border-slate-800 py-8 text-center text-slate-500 text-sm">
+      <footer className="bg-surface border-t border-slate-800 py-8 text-center text-slate-500 text-sm select-none">
         <p>© {new Date().getFullYear()} KeyVault Pro. Secure Mod Storage.</p>
       </footer>
     </div>

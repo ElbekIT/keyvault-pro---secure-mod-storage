@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User, AuthError } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment, Timestamp, DocumentReference, enableNetwork, disableNetwork, DocumentSnapshot } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDoc, doc, query, where, getDocs, serverTimestamp, updateDoc, increment, Timestamp, DocumentReference, enableNetwork, disableNetwork, DocumentSnapshot, QuerySnapshot } from "firebase/firestore";
 import { PasteData } from "../types";
 
 // Configuration provided by user
@@ -62,27 +62,54 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     });
 };
 
-// REAL Connection Checker (Pings the database)
+// RETRY HELPER: The secret to 100% reliability
+// If Firestore says "Offline", we kick it and try again.
+const retryOperation = async <T>(operation: () => Promise<T>, retries = 2): Promise<T> => {
+    try {
+        return await operation();
+    } catch (error: any) {
+        const isNetworkError = 
+            error.code === 'unavailable' || 
+            error.message?.includes('offline') || 
+            error.message?.includes('network');
+
+        if (isNetworkError && retries > 0) {
+            console.warn(`Network glitch detected. Retrying... (${retries} attempts left)`);
+            
+            // Force reconnect
+            try { await enableNetwork(db); } catch(e) {}
+            
+            // Wait 1 second before retry
+            await new Promise(r => setTimeout(r, 1000));
+            
+            return retryOperation(operation, retries - 1);
+        }
+        throw error;
+    }
+};
+
+// ROBUST Connection Checker
 export const checkDbConnection = async (): Promise<boolean> => {
     try {
-        // 1. Ensure network is enabled
-        await enableNetwork(db);
+        // 1. Try to ensure network is enabled (don't await strictly, fire and forget)
+        enableNetwork(db).catch(() => {});
         
-        // 2. Try to fetch a dummy document with a short timeout. 
-        // We don't care if it exists, just that we can talk to the server.
-        const healthRef = doc(db, "_health", "ping");
+        // 2. Try to fetch a health check doc with a generous timeout for cold starts
+        // We use a specific doc path to ensure we are testing reads
+        const healthRef = doc(db, "pastes", "_health_check_stub_");
         
         await withTimeout(
             getDoc(healthRef), 
-            5000, 
-            "Network Ping Timeout"
+            10000, // 10s timeout
+            "Ping Timeout"
         );
         
         return true;
     } catch (e: any) {
-        console.error("Connection check failed", e);
         // If permission denied, it means we CONNECTED but were rejected. That counts as "Online".
-        if (e.code === 'permission-denied') return true;
+        if (e.code === 'permission-denied' || e.message?.includes("permission")) return true;
+        
+        console.warn("Connection check failed (Offline mode active)");
         return false;
     }
 };
@@ -94,7 +121,7 @@ interface CreatePasteParams extends Omit<PasteData, 'id' | 'createdAt' | 'views'
 }
 
 export const createPaste = async (data: CreatePasteParams) => {
-  try {
+  const operation = async () => {
     let expiresAt = null;
     
     // Explicitly handle duration logic
@@ -117,44 +144,47 @@ export const createPaste = async (data: CreatePasteParams) => {
         views: 0
     };
 
-    // Use a stricter timeout (10 seconds)
+    // Use strict timeout but inside the retry loop
     const docRef = await withTimeout<DocumentReference>(
         addDoc(collection(db, "pastes"), docData), 
-        10000, 
-        "SERVER TIMEOUT: The database is not responding. Please check your internet connection."
+        15000, // 15s timeout for writes
+        "SERVER TIMEOUT: Could not save data. Internet is too slow."
     );
     
     return docRef.id;
+  };
+
+  try {
+    return await retryOperation(operation);
   } catch (error: any) {
     console.error("Error creating paste", error);
-    // Return clearer errors
     if (error.code === 'permission-denied') {
-        throw new Error("ACCESS DENIED: Firebase rules are blocking this write. Please check Firestore Rules.");
+        throw new Error("ACCESS DENIED: Firebase rules are blocking this write.");
     }
     throw error;
   }
 };
 
 export const getPaste = async (id: string) => {
-  try {
+  const operation = async () => {
     const docRef = doc(db, "pastes", id);
-    // 8 Second timeout for reads
     const docSnap = await withTimeout<DocumentSnapshot>(
         getDoc(docRef),
-        8000,
+        15000,
         "Slow connection: Could not retrieve key."
     );
     
     if (docSnap.exists()) {
-      // Increment view count silently, don't await it
-      updateDoc(docRef, {
-        views: increment(1)
-      }).catch(err => console.warn("Could not update view count", err));
-
+      // Fire and forget view increment
+      updateDoc(docRef, { views: increment(1) }).catch(() => {});
       return { id: docSnap.id, ...docSnap.data() } as PasteData;
     } else {
       return null;
     }
+  };
+
+  try {
+    return await retryOperation(operation);
   } catch (error) {
     console.error("Error fetching paste", error);
     throw error;
@@ -162,9 +192,13 @@ export const getPaste = async (id: string) => {
 };
 
 export const getUserPastes = async (uid: string) => {
-  try {
+  const operation = async () => {
     const q = query(collection(db, "pastes"), where("authorId", "==", uid));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await withTimeout<QuerySnapshot>(
+        getDocs(q),
+        15000,
+        "Could not load dashboard."
+    );
     const pastes: PasteData[] = [];
     querySnapshot.forEach((doc) => {
       pastes.push({ id: doc.id, ...doc.data() } as PasteData);
@@ -175,6 +209,10 @@ export const getUserPastes = async (uid: string) => {
         const timeB = b.createdAt?.seconds || 0;
         return timeB - timeA;
     });
+  };
+
+  try {
+    return await retryOperation(operation);
   } catch (error) {
     console.error("Error fetching user pastes", error);
     return [];

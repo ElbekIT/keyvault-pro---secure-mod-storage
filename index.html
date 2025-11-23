@@ -40,9 +40,32 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #10b981; 
       }
+      
+      /* GLOBAL SECURITY STYLES */
       body {
         background-color: #0f172a;
         color: #f8fafc;
+        /* Prevent text selection everywhere */
+        -webkit-user-select: none; /* Safari */
+        -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* IE10+/Edge */
+        user-select: none; /* Standard */
+      }
+
+      /* Allow selection only in specific allowed zones (like inputs or the key display) */
+      .allow-select {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+
+      /* Ensure inputs are always usable */
+      input, textarea {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
       }
     </style>
   <script type="importmap">
