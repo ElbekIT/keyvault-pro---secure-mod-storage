@@ -1,0 +1,5 @@
+{
+  "name": "KeyVault Pro - Secure Mod Storage",
+  "description": "A high-security, encrypted paste and key storage platform designed for modders and developers. Features Google Authentication, real-time cloud storage via Firebase, and a modern dark-themed UI.",
+  "requestFramePermissions": []
+}
